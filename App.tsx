@@ -52,9 +52,7 @@ export default function App() {
   const [precio, setPrecio] = useState("");
   const [stock, setStock] = useState("");
 
-  // ------------------------
   // Cargar productos (GET)
-  // ------------------------
   const cargar = async () => {
     try {
       const r = await fetch(API);
@@ -76,10 +74,7 @@ export default function App() {
     setPrecio("");
     setStock("");
   };
-
-  // ------------------------
   // Agregar (POST)
-  // ------------------------
   const guardar = async () => {
     if (!nombre.trim()) return Alert.alert("Error", "Nombre obligatorio");
 
@@ -103,10 +98,7 @@ export default function App() {
       setModal(false);
     }
   };
-
-  // ------------------------
   // Editar (PUT)
-  // ------------------------
   const actualizar = async () => {
     if (!editando) return;
 
@@ -129,10 +121,7 @@ export default function App() {
     setEditando(null);
     setModal(false);
   };
-
-  // ------------------------
   // Eliminar (DELETE)
-  // ------------------------
   const eliminar = async (id: number) => {
     Alert.alert("Confirmar", "¿Eliminar producto?", [
       { text: "Cancelar" },
@@ -281,9 +270,7 @@ export default function App() {
   );
 }
 
-// ------------------------
 // ESTILOS
-// ------------------------
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#f5f5f5" },
   titulo: { fontSize: 28, fontWeight: "bold", marginBottom: 20 },
