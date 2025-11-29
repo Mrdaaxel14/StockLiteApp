@@ -15,22 +15,19 @@
  * StockLite App - Con Formulario para Crear Productos
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
+  TextInput,
+  Modal,
   StyleSheet,
   Alert,
-  Modal,
-  TextInput,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+  ScrollView
+} from "react-native";
 
-// Interfaz del Producto
 interface Producto {
   id: number;
   nombre: string;
@@ -41,398 +38,300 @@ interface Producto {
 }
 
 export default function App() {
-  // Estados
-  const [productos, setProductos] = useState<Producto[]>([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [nombre, setNombre] = useState('');
-  const [descripcion, setDescripcion] = useState('');
-  const [categoria, setCategoria] = useState('');
-  const [precio, setPrecio] = useState('');
-  const [stock, setStock] = useState('');
 
-  // Cargar productos al iniciar
+  const API = "http://10.0.2.2/finalprog3/api.php";
+
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [modal, setModal] = useState(false);
+  const [editando, setEditando] = useState<Producto | null>(null);
+
+  // Campos del formulario
+  const [nombre, setNombre] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [precio, setPrecio] = useState("");
+  const [stock, setStock] = useState("");
+
+  // ------------------------
+  // Cargar productos (GET)
+  // ------------------------
+  const cargar = async () => {
+    try {
+      const r = await fetch(API);
+      const json = await r.json();
+      setProductos(json);
+    } catch (error) {
+      Alert.alert("Error", "No se pudo conectar con la API");
+    }
+  };
+
   useEffect(() => {
-    cargarProductos();
+    cargar();
   }, []);
 
-  const API_URL = 'http://10.0.2.2/finalprog3/api.php';
+  const limpiar = () => {
+    setNombre("");
+    setDescripcion("");
+    setCategoria("");
+    setPrecio("");
+    setStock("");
+  };
 
-  // Función para cargar productos (GET)
-  const cargarProductos = async () => {
-    try {
-      const respuesta = await fetch(API_URL);
-      const datos = await respuesta.json();
-      setProductos(datos);
-      console.log('Productos cargados:', datos);
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo conectar con el servidor');
-      console.error(error);
+  // ------------------------
+  // Agregar (POST)
+  // ------------------------
+  const guardar = async () => {
+    if (!nombre.trim()) return Alert.alert("Error", "Nombre obligatorio");
+
+    const prod = {
+      nombre,
+      descripcion,
+      categoria,
+      precio: Number(precio),
+      stock: Number(stock)
+    };
+
+    const r = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(prod)
+    });
+
+    if (r.ok) {
+      cargar();
+      limpiar();
+      setModal(false);
     }
   };
 
-  // Limpiar formulario
-  const limpiarFormulario = () => {
-    setNombre('');
-    setDescripcion('');
-    setCategoria('');
-    setPrecio('');
-    setStock('');
+  // ------------------------
+  // Editar (PUT)
+  // ------------------------
+  const actualizar = async () => {
+    if (!editando) return;
+
+    const prod = {
+      nombre,
+      descripcion,
+      categoria,
+      precio: Number(precio),
+      stock: Number(stock)
+    };
+
+    await fetch(`${API}?id=${editando.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(prod)
+    });
+
+    cargar();
+    limpiar();
+    setEditando(null);
+    setModal(false);
   };
 
-  // Función para agregar producto (POST)
-  const agregarProducto = async () => {
-    // Validaciones
-    if (!nombre.trim()) {
-      Alert.alert('Error', 'El nombre es obligatorio');
-      return;
-    }
-    if (!precio || isNaN(Number(precio))) {
-      Alert.alert('Error', 'El precio debe ser un número válido');
-      return;
-    }
-    if (!stock || isNaN(Number(stock))) {
-      Alert.alert('Error', 'El stock debe ser un número válido');
-      return;
-    }
-
-    try {
-      const nuevoProducto = {
-        nombre: nombre.trim(),
-        descripcion: descripcion.trim(),
-        categoria: categoria.trim() || 'Sin categoría',
-        precio: Number(precio),
-        stock: Number(stock),
-      };
-
-      const respuesta = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nuevoProducto),
-      });
-
-      if (respuesta.ok) {
-        Alert.alert('✅ Éxito', 'Producto agregado correctamente');
-        limpiarFormulario();
-        setModalVisible(false);
-        cargarProductos(); // Recargar lista
-      } else {
-        Alert.alert('Error', 'No se pudo agregar el producto');
+  // ------------------------
+  // Eliminar (DELETE)
+  // ------------------------
+  const eliminar = async (id: number) => {
+    Alert.alert("Confirmar", "¿Eliminar producto?", [
+      { text: "Cancelar" },
+      {
+        text: "Eliminar",
+        onPress: async () => {
+          await fetch(`${API}?id=${id}`, { method: "DELETE" });
+          cargar();
+        }
       }
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo conectar con el servidor');
-      console.error(error);
-    }
+    ]);
   };
 
-  // Renderizar cada producto
-  const renderProducto = ({ item }: { item: Producto }) => (
-    <View style={styles.card}>
-      <Text style={styles.nombre}>{item.nombre}</Text>
-      <Text style={styles.descripcion}>{item.descripcion}</Text>
-      <View style={styles.detalles}>
-        <Text style={styles.categoria}>📁 {item.categoria}</Text>
-        <Text style={styles.precio}>💰 ${item.precio}</Text>
-      </View>
-      <Text style={styles.stock}>📦 Stock: {item.stock}</Text>
-    </View>
-  );
-
+  // ------------------------
+  // UI
+  // ------------------------
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.titulo}>📊 Lista de Productos</Text>
-        <Text style={styles.contador}>{productos.length} productos</Text>
-      </View>
 
-      {/* Lista de productos */}
+      <Text style={styles.titulo}>📦 Productos</Text>
+
       <FlatList
         data={productos}
-        renderItem={renderProducto}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.lista}
-      />
+        keyExtractor={(i) => i.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.nombre}>{item.nombre}</Text>
+            <Text>Descripción: {item.descripcion}</Text>
+            <Text>Categoría: {item.categoria}</Text>
+            <Text>Precio: ${item.precio}</Text>
+            <Text>Stock: {item.stock}</Text>
 
-      {/* Botón flotante para agregar */}
-      <TouchableOpacity
-        style={styles.botonFlotante}
-        onPress={() => setModalVisible(true)}
-      >
-        <Text style={styles.botonFlotanteTexto}>+</Text>
-      </TouchableOpacity>
+            <View style={styles.row}>
+              <TouchableOpacity
+                style={styles.btn}
+                onPress={() => {
+                  setEditando(item);
+                  setNombre(item.nombre);
+                  setDescripcion(item.descripcion);
+                  setCategoria(item.categoria);
+                  setPrecio(String(item.precio));
+                  setStock(String(item.stock));
+                  setModal(true);
+                }}
+              >
+                <Text>Editar</Text>
+              </TouchableOpacity>
 
-      {/* Modal con formulario */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalContainer}
-        >
-          <View style={styles.modalContenido}>
-            {/* Header del modal */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitulo}>Nuevo Producto</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={styles.cerrarBoton}>✕</Text>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnRojo]}
+                onPress={() => eliminar(item.id)}
+              >
+                <Text style={{ color: "white" }}>Eliminar</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        )}
+      />
 
-            {/* Formulario */}
-            <ScrollView style={styles.formulario}>
-              <Text style={styles.label}>Nombre *</Text>
+      {/* Botón flotante */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => {
+          limpiar();
+          setEditando(null);
+          setModal(true);
+        }}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
+
+      {/* Modal */}
+      <Modal visible={modal} transparent animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitulo}>
+              {editando ? "Editar Producto" : "Nuevo Producto"}
+            </Text>
+
+            <ScrollView>
+
               <TextInput
                 style={styles.input}
-                placeholder="Ej: Zapatillas Nike"
+                placeholder="Nombre"
                 value={nombre}
                 onChangeText={setNombre}
               />
 
-              <Text style={styles.label}>Descripción</Text>
-              <TextInput
-                style={[styles.input, styles.inputMultilinea]}
-                placeholder="Descripción del producto"
-                value={descripcion}
-                onChangeText={setDescripcion}
-                multiline
-                numberOfLines={3}
-              />
-
-              <Text style={styles.label}>Categoría</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Ej: Calzado"
+                placeholder="Descripción"
+                value={descripcion}
+                onChangeText={setDescripcion}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Categoría"
                 value={categoria}
                 onChangeText={setCategoria}
               />
 
-              <Text style={styles.label}>Precio *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="0.00"
+                placeholder="Precio"
+                keyboardType="numeric"
                 value={precio}
                 onChangeText={setPrecio}
-                keyboardType="numeric"
               />
 
-              <Text style={styles.label}>Stock *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="0"
+                placeholder="Stock"
+                keyboardType="numeric"
                 value={stock}
                 onChangeText={setStock}
-                keyboardType="numeric"
               />
+
             </ScrollView>
 
-            {/* Botones */}
-            <View style={styles.botonesModal}>
+            <View style={styles.row}>
+
               <TouchableOpacity
-                style={[styles.boton, styles.botonCancelar]}
-                onPress={() => {
-                  limpiarFormulario();
-                  setModalVisible(false);
-                }}
+                style={styles.btn}
+                onPress={() => setModal(false)}
               >
-                <Text style={styles.botonCancelarTexto}>Cancelar</Text>
+                <Text>Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.boton, styles.botonGuardar]}
-                onPress={agregarProducto}
+                style={[styles.btn, styles.btnAzul]}
+                onPress={editando ? actualizar : guardar}
               >
-                <Text style={styles.botonGuardarTexto}>Guardar</Text>
+                <Text style={{ color: "white" }}>
+                  {editando ? "Actualizar" : "Guardar"}
+                </Text>
               </TouchableOpacity>
+
             </View>
+
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
+
     </View>
   );
 }
 
+// ------------------------
+// ESTILOS
+// ------------------------
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f7fa',
-  },
-  header: {
-    backgroundColor: '#fff',
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  titulo: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  contador: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 5,
-  },
-  lista: {
-    padding: 16,
-    paddingBottom: 80,
-  },
+  container: { flex: 1, padding: 20, backgroundColor: "#f5f5f5" },
+  titulo: { fontSize: 28, fontWeight: "bold", marginBottom: 20 },
   card: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    elevation: 3
   },
-  nombre: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 8,
+  nombre: { fontSize: 18, fontWeight: "bold" },
+  row: { flexDirection: "row", gap: 10, marginTop: 10 },
+  btn: {
+    backgroundColor: "#ddd",
+    padding: 10,
+    borderRadius: 8
   },
-  descripcion: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 12,
-  },
-  detalles: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  categoria: {
-    fontSize: 14,
-    color: '#4b5563',
-  },
-  precio: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#059669',
-  },
-  stock: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-
-  // Botón flotante
-  botonFlotante: {
-    position: 'absolute',
+  btnRojo: { backgroundColor: "red" },
+  btnAzul: { backgroundColor: "blue" },
+  fab: {
+    position: "absolute",
     right: 20,
     bottom: 20,
-    backgroundColor: '#007AFF',
+    backgroundColor: "blue",
     width: 60,
     height: 60,
     borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    justifyContent: "center",
+    alignItems: "center"
   },
-  botonFlotanteTexto: {
-    fontSize: 36,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-
-  // Modal
+  fabText: { color: "white", fontSize: 30 },
   modalContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center"
   },
-  modalContenido: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 20,
-    maxHeight: '90%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  modal: {
+    width: "85%",
+    backgroundColor: "white",
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderRadius: 15
   },
-  modalTitulo: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  cerrarBoton: {
-    fontSize: 28,
-    color: '#6b7280',
-  },
-
-  // Formulario
-  formulario: {
-    padding: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-    marginTop: 12,
-  },
+  modalTitulo: { fontSize: 20, fontWeight: "bold", marginBottom: 10 },
   input: {
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
+    backgroundColor: "#f2f2f2",
+    padding: 10,
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  inputMultilinea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-
-  // Botones del modal
-  botonesModal: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    gap: 12,
-  },
-  boton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  botonCancelar: {
-    backgroundColor: '#f3f4f6',
-  },
-  botonCancelarTexto: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  botonGuardar: {
-    backgroundColor: '#007AFF',
-  },
-  botonGuardarTexto: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+    marginBottom: 10
+  }
 });
